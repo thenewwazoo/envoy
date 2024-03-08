@@ -429,7 +429,6 @@ void ConnectionManagerUtility::mutateXfccRequestHeader(RequestHeaderMap& request
     return;
   }
 
-  // TODO(myidpt): Handle the special characters in By and URI fields.
   // TODO: Optimize client_cert_details based on perf analysis (direct string appending may be more
   // preferable).
   std::vector<std::string> client_cert_details;
@@ -440,7 +439,7 @@ void ConnectionManagerUtility::mutateXfccRequestHeader(RequestHeaderMap& request
     const auto uri_sans_local_cert = connection.ssl()->uriSanLocalCertificate();
     if (!uri_sans_local_cert.empty()) {
       for (const std::string& uri : uri_sans_local_cert) {
-        client_cert_details.push_back(absl::StrCat("By=", uri));
+        client_cert_details.push_back(absl::StrCat("By=", Utility::sanitizeSanForXfcc(uri)));
       }
     }
     const std::string cert_digest = connection.ssl()->sha256PeerCertificateDigest();
@@ -473,7 +472,7 @@ void ConnectionManagerUtility::mutateXfccRequestHeader(RequestHeaderMap& request
         const auto sans = connection.ssl()->uriSanPeerCertificate();
         if (!sans.empty()) {
           for (const std::string& uri : sans) {
-            client_cert_details.push_back(absl::StrCat("URI=", uri));
+            client_cert_details.push_back(absl::StrCat("URI=", Utility::sanitizeSanForXfcc(uri)));
           }
         } else {
           client_cert_details.push_back("URI=");

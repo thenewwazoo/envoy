@@ -1224,6 +1224,47 @@ TEST_F(ConnectionManagerUtilityTest, MtlsSetForwardClientCert) {
             headers.get_("x-forwarded-client-cert"));
 }
 
+// The server (local) identity is `urn:example:service(test;dev)` and the client (peer) identity is
+// `user("username")`. The client does not set XFCC.
+TEST_F(ConnectionManagerUtilityTest, MtlsEscapeSansInLocalAndPeerCert) {
+  auto ssl = std::make_shared<NiceMock<Ssl::MockConnectionInfo>>();
+  ON_CALL(*ssl, peerCertificatePresented()).WillByDefault(Return(true));
+  const std::vector<std::string> local_uri_sans{"urn:example:service(test;dev)"};
+  EXPECT_CALL(*ssl, uriSanLocalCertificate()).WillOnce(Return(local_uri_sans));
+  std::string expected_sha("abcdefg");
+  EXPECT_CALL(*ssl, sha256PeerCertificateDigest()).WillOnce(ReturnRef(expected_sha));
+  const std::vector<std::string> peer_uri_sans{"user(\"username\")"};
+  EXPECT_CALL(*ssl, uriSanPeerCertificate()).WillRepeatedly(Return(peer_uri_sans));
+  std::string expected_pem("%3D%3Dabc%0Ade%3D");
+  EXPECT_CALL(*ssl, urlEncodedPemEncodedPeerCertificate()).WillOnce(ReturnRef(expected_pem));
+  std::string expected_chain_pem(expected_pem + "%3D%3Dlmn%0Aop%3D");
+  EXPECT_CALL(*ssl, urlEncodedPemEncodedPeerCertificateChain())
+      .WillOnce(ReturnRef(expected_chain_pem));
+  std::vector<std::string> expected_dns = {"www.example.com"};
+  EXPECT_CALL(*ssl, dnsSansPeerCertificate()).WillOnce(Return(expected_dns));
+  ON_CALL(connection_, ssl()).WillByDefault(Return(ssl));
+  ON_CALL(config_, forwardClientCert())
+      .WillByDefault(Return(Http::ForwardClientCertType::AppendForward));
+  std::vector<Http::ClientCertDetailsType> details = std::vector<Http::ClientCertDetailsType>();
+  details.push_back(Http::ClientCertDetailsType::URI);
+  details.push_back(Http::ClientCertDetailsType::Cert);
+  details.push_back(Http::ClientCertDetailsType::Chain);
+  details.push_back(Http::ClientCertDetailsType::DNS);
+  ON_CALL(config_, setCurrentClientCertDetails()).WillByDefault(ReturnRef(details));
+  TestRequestHeaderMapImpl headers;
+
+  EXPECT_EQ((MutateRequestRet{"10.0.0.3:50000", false, Tracing::Reason::NotTraceable}),
+            callMutateRequestHeaders(headers, Protocol::Http2));
+  EXPECT_TRUE(headers.has("x-forwarded-client-cert"));
+  EXPECT_EQ("By=\"urn:example:service(test;dev)\";"
+            "Hash=abcdefg;"
+            "URI=user(\\\"username\\\");"
+            "Cert=\"%3D%3Dabc%0Ade%3D\";"
+            "Chain=\"%3D%3Dabc%0Ade%3D%3D%3Dlmn%0Aop%3D\";"
+            "DNS=www.example.com",
+            headers.get_("x-forwarded-client-cert"));
+}
+
 // This test assumes the following scenario:
 // The client identity is test://foo.com/fe and http://frontend.foo.com,
 // and the server (local) identity is test://foo.com/be and http://backend.frontend.com.

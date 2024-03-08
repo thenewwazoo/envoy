@@ -1557,5 +1557,26 @@ bool Utility::isValidRefererValue(absl::string_view value) {
   return true;
 }
 
+std::string Utility::sanitizeSanForXfcc(const std::string& raw) {
+  std::string clean_uri;
+  bool need_quote = false;
+  for (const char& c : raw) {
+    // If “,”, “;” or “=” appear in a value, the value should be double-quoted.
+    if (c == ',' || c == ';' || c == '=') {
+      need_quote = true;
+    }
+    // Double-quotes in the value should be replaced by backslash-double-quote (\").
+    if (c == '"') {
+      clean_uri.push_back('\\');
+    }
+    clean_uri.push_back(c);
+  }
+  if (need_quote) {
+    clean_uri.insert(0, 1, '"');
+    clean_uri.push_back('"');
+  }
+  return clean_uri;
+}
+
 } // namespace Http
 } // namespace Envoy

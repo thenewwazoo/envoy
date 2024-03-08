@@ -750,6 +750,15 @@ bool schemeIsHttps(const absl::string_view scheme);
 std::string newUri(::Envoy::OptRef<const RedirectConfig> redirect_config,
                    const Http::RequestHeaderMap& headers);
 
+/*
+ * Sanitize SANs for use in XFCC header lines in By or URI fields
+ * @param raw unsanitized SAN string from certificate extension field possibly containing separator
+ * characters
+ * @return sanitized copy of the argument
+ * https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_conn_man/headers#x-forwarded-client-cert
+ */
+std::string sanitizeSanForXfcc(const std::string& raw);
+
 } // namespace Utility
 } // namespace Http
 } // namespace Envoy
