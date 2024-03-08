@@ -462,8 +462,8 @@ message HttpConnectionManager {
   // is APPEND_FORWARD or SANITIZE_SET and the client connection is mTLS. It specifies the fields in
   // the client certificate to be forwarded. Note that in the
   // :ref:`config_http_conn_man_headers_x-forwarded-client-cert` header, *Hash* is always set, and
-  // *By* is always set when the client certificate presents the URI type Subject Alternative Name
-  // value.
+  // *By* is always set when the local certificate has one or more URI type Subject Alternative Name
+  // values.
   SetCurrentClientCertDetails set_current_client_cert_details = 17;
 
   // If proxy_100_continue is true, Envoy will proxy incoming "Expect:
